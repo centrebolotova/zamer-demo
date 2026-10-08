@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Замер дверного проёма</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow working column; two tabs (tape / A4 photo), each — inputs on top, live numbers under them */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --fg: #17202b;
+  --muted: #5b6676;
+  --line: #d8dee6;
+  --accent: #1f3a5f;
+  --accent-fg: #ffffff;
+  --sheet: #e0841a;
+  --door: #1688d0;
+  --good: #2c7a4b;
+  --bad: #b2412c;
+  --mark-bg: #fff1a8;
+  --mark-fg: #4a3a00;
+  --stage: #1b222c;
+  --font-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e131a; --surface: #161d26; --fg: #e5eaf0; --muted: #96a2b2; --line: #28323e;
+    --accent: #8db2e2; --accent-fg: #0e131a; --sheet: #f2a141; --door: #4db2f0;
+    --good: #6cc792; --bad: #f08a75; --mark-bg: #4d4000; --mark-fg: #ffe78f; --stage: #0a0e13;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e131a; --surface: #161d26; --fg: #e5eaf0; --muted: #96a2b2; --line: #28323e;
+  --accent: #8db2e2; --accent-fg: #0e131a; --sheet: #f2a141; --door: #4db2f0;
+  --good: #6cc792; --bad: #f08a75; --mark-bg: #4d4000; --mark-fg: #ffe78f; --stage: #0a0e13;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 720px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 48px; display: grid; gap: 28px; }
+h1, h2 { text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(26px, 6vw, 34px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 19px; font-weight: 600; }
+p { margin: 0; }
+[hidden] { display: none !important; }
+.eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; }
+header { display: grid; gap: 10px; }
+.lede { color: var(--muted); max-width: 60ch; }
+
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 10px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+.steps li::before { content: counter(s); font-family: var(--font-mono); font-size: 13px; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; color: var(--muted); }
+
+.tool { display: grid; gap: 12px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: inherit; font-size: 15px; font-weight: 500; padding: 10px 16px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; display: inline-flex; align-items: center; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--door); outline-offset: 2px; }
+.note { font-size: 14px; color: var(--muted); }
+
+.stage { position: relative; background: var(--stage); border-radius: 14px; overflow: hidden; display: flex; justify-content: center; }
+#view { display: block; max-width: 100%; touch-action: pan-y; }
+#loupe { position: absolute; top: 10px; width: 140px; height: 140px; border-radius: 12px; border: 2px solid #fff; box-shadow: 0 4px 18px rgba(0,0,0,.45); pointer-events: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 14px; color: var(--muted); }
+.key { display: inline-flex; align-items: center; gap: 6px; }
+.key::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 3px solid currentColor; }
+.key.sheet { color: var(--sheet); } .key.door { color: var(--door); }
+.key span { color: var(--fg); }
+select, input[type="number"] { font: inherit; font-size: 15px; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--surface); color: var(--fg); }
+
+.results { display: grid; gap: 14px; }
+.dims { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dim { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 2px; min-width: 0; }
+.dim .label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.dim .value { font-size: clamp(30px, 8vw, 40px); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.1; }
+.dim .value small { font-size: 16px; font-weight: 500; color: var(--muted); }
+.dim .pm { font-family: var(--font-mono); font-size: 14px; color: var(--muted); }
+.ctrl { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.warn { padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--bad); color: var(--bad); font-size: 14px; }
+mark { background: var(--mark-bg); color: var(--mark-fg); padding: 1px 4px; border-radius: 4px; }
+.suggest { font-size: 15px; }
+
+.check { display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px; }
+.tape { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tape label { display: grid; gap: 4px; font-size: 14px; color: var(--muted); min-width: 0; }
+.tape input { width: 100%; box-sizing: border-box; font-variant-numeric: tabular-nums; }
+.diff { font-family: var(--font-mono); font-size: 14px; }
+.diff .ok { color: var(--good); } .diff .bad { color: var(--bad); }
+.log { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.log li { border-top: 1px solid var(--line); padding-top: 6px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#copyBox { width: 100%; box-sizing: border-box; min-height: 90px; font-family: var(--font-mono); font-size: 13px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.tab { flex: 1; font: inherit; font-size: 15px; font-weight: 500; padding: 10px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--accent); color: var(--accent-fg); }
+.tab:focus-visible { outline: 2px solid var(--door); outline-offset: 2px; }
+.pane { display: grid; gap: 28px; }
+.choice { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.choice label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.hint { font-size: 15px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.ills { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; align-items: end; }
+.ill { display: grid; gap: 4px; min-width: 0; margin: 0; }
+.ill svg { width: 100%; height: auto; display: block; }
+.ill figcaption { font-size: 13px; color: var(--muted); }
+.ill .wall { fill: var(--surface); stroke: var(--line); stroke-width: 2; }
+.ill .hole { fill: var(--bg); stroke: var(--muted); stroke-width: 2; }
+.ill .floor { stroke: var(--muted); stroke-width: 2; }
+.ill .arw { stroke: var(--door); stroke-width: 2.5; fill: none; }
+.ill .arw-t { stroke: var(--sheet); stroke-width: 2.5; fill: none; }
+.ill .head { fill: var(--door); } .ill .head-t { fill: var(--sheet); }
+.ill text { fill: var(--fg); font-family: var(--font-body); font-size: 13px; font-weight: 600; }
+fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+legend { font-weight: 600; font-size: 16px; padding: 0; margin-bottom: 2px; }
+legend small { font-weight: 400; color: var(--muted); font-size: 14px; }
+.fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.fields.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fields label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+.fields input { width: 100%; box-sizing: border-box; font-variant-numeric: tabular-nums; }
+.dims.three { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.info { padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--line); font-size: 14px; color: var(--muted); }
+.linkish { font: inherit; font-size: 14px; color: var(--accent); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; justify-self: start; }
+#tapeForm { display: grid; gap: 18px; }
+@media (max-width: 420px) { .dims, .tape { gap: 8px; } .dim { padding: 12px; } .ills { grid-template-columns: 1fr; } }
+</style>
+
+<main class="wrap">
+  <header>
+    <p class="eyebrow">Замер и подбор двери · прототип 2</p>
+    <h1>Замер дверного проёма</h1>
+    <p class="lede">Два способа на выбор: рулеткой или по фото с листом А4 на стене. После замера сразу видно, какая дверь подойдёт.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Способ замера">
+    <button type="button" class="tab" role="tab" id="tabTape" aria-controls="paneTape" aria-selected="true">Рулеткой</button>
+    <button type="button" class="tab" role="tab" id="tabA4" aria-controls="paneA4" aria-selected="false">По фото с листом А4</button>
+  </div>
+
+  <div class="pane" id="paneTape" role="tabpanel" aria-labelledby="tabTape">
+    <div class="choice" role="radiogroup" aria-label="Стоит ли сейчас дверь">
+      <span>В проёме сейчас стоит дверь?</span>
+      <label><input type="radio" name="hasDoor" id="doorNo" value="no" checked> Нет, пустой проём</label>
+      <label><input type="radio" name="hasDoor" id="doorYes" value="yes"> Да, старая дверь</label>
+    </div>
+    <p class="hint" id="tapeHint"></p>
+
+    <div class="ills">
+      <figure class="ill">
+        <svg viewBox="0 0 300 250" role="img" aria-label="Где мерить ширину и высоту">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="aht" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path class="head-t" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <rect class="wall" x="10" y="10" width="280" height="225"/>
+          <rect class="hole" x="95" y="40" width="110" height="195"/>
+          <line class="floor" x1="0" y1="235" x2="300" y2="235"/>
+          <line class="arw" x1="99" y1="62" x2="201" y2="62" marker-start="url(#ah)" marker-end="url(#ah)"/>
+          <line class="arw" x1="99" y1="138" x2="201" y2="138" marker-start="url(#ah)" marker-end="url(#ah)"/>
+          <line class="arw" x1="99" y1="218" x2="201" y2="218" marker-start="url(#ah)" marker-end="url(#ah)"/>
+          <line class="arw" x1="122" y1="44" x2="122" y2="231" marker-start="url(#ah)" marker-end="url(#ah)"/>
+          <line class="arw" x1="178" y1="44" x2="178" y2="231" marker-start="url(#ah)" marker-end="url(#ah)"/>
+          <text x="212" y="67">Ш1 верх</text>
+          <text x="212" y="143">Ш2 середина</text>
+          <text x="212" y="223">Ш3 низ</text>
+          <text x="22" y="104">В1 слева</text>
+          <text x="212" y="104">В2 справа</text>
+        </svg>
+        <figcaption>Вид спереди. Высота — от пола до верха проёма.</figcaption>
+      </figure>
+      <figure class="ill">
+        <svg viewBox="0 0 200 130" role="img" aria-label="Где мерить толщину стены">
+          <rect class="wall" x="5" y="45" width="60" height="50"/>
+          <rect class="wall" x="135" y="45" width="60" height="50"/>
+          <line class="arw-t" x1="50" y1="49" x2="50" y2="91" marker-start="url(#aht)" marker-end="url(#aht)"/>
+          <line class="arw-t" x1="150" y1="49" x2="150" y2="91" marker-start="url(#aht)" marker-end="url(#aht)"/>
+          <text x="40" y="34">Т1</text>
+          <text x="140" y="34">Т2</text>
+          <text x="80" y="75">проём</text>
+        </svg>
+        <figcaption>Вид сверху. Толщина стены с двух сторон проёма.</figcaption>
+      </figure>
+    </div>
+
+    <form id="tapeForm" novalidate>
+      <fieldset>
+        <legend>Ширина, мм <small>· в трёх местах</small></legend>
+        <div class="fields">
+          <label for="w1">Ш1 верх<input type="number" id="w1" inputmode="decimal" placeholder="880"></label>
+          <label for="w2">Ш2 середина<input type="number" id="w2" inputmode="decimal" placeholder="885"></label>
+          <label for="w3">Ш3 низ<input type="number" id="w3" inputmode="decimal" placeholder="882"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Высота, мм <small>· слева и справа</small></legend>
+        <div class="fields two">
+          <label for="h1">В1 слева<input type="number" id="h1" inputmode="decimal" placeholder="2080"></label>
+          <label for="h2">В2 справа<input type="number" id="h2" inputmode="decimal" placeholder="2075"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Толщина стены, мм <small>· с двух сторон</small></legend>
+        <div class="fields two">
+          <label for="t1">Т1 слева<input type="number" id="t1" inputmode="decimal" placeholder="120"></label>
+          <label for="t2">Т2 справа<input type="number" id="t2" inputmode="decimal" placeholder="125"></label>
+        </div>
+      </fieldset>
+      <button type="button" class="linkish" id="tapeExample">Заполнить примером</button>
+    </form>
+
+    <section class="results" aria-live="polite">
+      <h2>Ваш проём</h2>
+      <div class="dims three">
+        <div class="dim"><span class="label">Ширина</span><span class="value"><span id="tW">—</span> <small>мм</small></span><span class="pm">самое узкое место</span></div>
+        <div class="dim"><span class="label">Высота</span><span class="value"><span id="tH">—</span> <small>мм</small></span><span class="pm">самое низкое место</span></div>
+        <div class="dim"><span class="label">Стена</span><span class="value"><span id="tT">—</span> <small>мм</small></span><span class="pm">самое толстое место</span></div>
+      </div>
+      <p class="info" id="tInfo" hidden></p>
+      <div class="warn" id="tWarn" hidden></div>
+      <p class="suggest" id="tSuggest">Впишите хотя бы одну ширину и одну высоту.</p>
+    </section>
+  </div>
+
+  <div class="pane" id="paneA4" role="tabpanel" aria-labelledby="tabA4" hidden>
+
+  <ol class="steps">
+    <li><span>Приклейте лист А4 скотчем на стену рядом с проёмом. Именно на стену, не на дверь и не на откос.</span></li>
+    <li><span>Отойдите на 2–3 метра и снимайте обычной камерой (1×, не широкоугольной). В кадре весь проём и лист, телефон держите по возможности прямо.</span></li>
+    <li><span>Загрузите фото и перетащите оранжевые точки на углы листа, синие — на углы проёма. При перетаскивании появляется лупа; медленное движение двигает точку точнее.</span></li>
+    <li><span>Измерьте тот же проём рулеткой, впишите цифры ниже и сохраните проверку.</span></li>
+  </ol>
+
+  <section class="tool" aria-label="Фото проёма">
+    <div class="toolbar">
+      <label class="btn primary" for="photo">Загрузить фото проёма</label>
+      <input type="file" id="photo" accept="image/*" hidden>
+      <button type="button" id="resetPts" class="btn">Расставить точки заново</button>
+      <button type="button" id="loadExample" class="btn">Открыть пример</button>
+    </div>
+    <p id="srcNote" class="note">Сейчас открыт пример: нарисованная стена, проём ровно 880 × 2080 мм. Подвиньте любую точку и посмотрите, как меняются размеры.</p>
+    <div class="stage" id="stage">
+      <canvas id="view" aria-label="Фото проёма с отметками углов"></canvas>
+      <canvas id="loupe" hidden></canvas>
+    </div>
+    <div class="legend">
+      <span class="key sheet"><span>Углы листа А4</span></span>
+      <span class="key door"><span>Углы проёма</span></span>
+      <label>Лист висит
+        <select id="orient">
+          <option value="auto">определить сам</option>
+          <option value="port">вертикально</option>
+          <option value="land">горизонтально</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="results" aria-live="polite">
+    <h2>Размеры проёма</h2>
+    <div class="dims">
+      <div class="dim">
+        <span class="label">Ширина</span>
+        <span class="value"><span id="wVal">—</span> <small>мм</small></span>
+        <span class="pm" id="wPm"></span>
+      </div>
+      <div class="dim">
+        <span class="label">Высота</span>
+        <span class="value"><span id="hVal">—</span> <small>мм</small></span>
+        <span class="pm" id="hPm"></span>
+      </div>
+    </div>
+    <p class="ctrl" id="ctrl"></p>
+    <div id="warn" class="warn" hidden></div>
+    <p class="suggest" id="suggest"></p>
+  </section>
+
+  <section class="check" aria-label="Сверка с рулеткой">
+    <h2>Сверка с рулеткой</h2>
+    <div class="tape">
+      <label for="tapeW">Ширина по рулетке, мм<input type="number" id="tapeW" inputmode="numeric" placeholder="например, 800"></label>
+      <label for="tapeH">Высота по рулетке, мм<input type="number" id="tapeH" inputmode="numeric" placeholder="например, 2030"></label>
+    </div>
+    <p class="diff" id="diff">Впишите размеры по рулетке, и здесь появится разница.</p>
+    <div class="row">
+      <button type="button" class="btn primary" id="saveCheck">Сохранить проверку</button>
+      <button type="button" class="btn" id="copyLog">Скопировать все проверки</button>
+    </div>
+    <ul class="log" id="log"></ul>
+    <textarea id="copyBox" readonly hidden aria-label="Текст проверок"></textarea>
+  </section>
+  </div>
+
+  <footer>
+    <p>Любой замер здесь предварительный. Финальные размеры снимает замерщик.</p>
+    <p>По фото толщину стены не измерить, её меряют рулеткой.</p>
+    <p>Проверки фото-замера хранятся только в этом браузере. Чтобы прислать их, нажмите «Скопировать все проверки».</p>
+  </footer>
+</main>
+
+<script>
+// ===== MATH START =====
+function solve(A, b) {
+  const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (Math.abs(M[p][c]) < 1e-12) return null;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = c + 1; r < n; r++) {
+      const f = M[r][c] / M[c][c];
+      for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k];
+    }
+  }
+  const x = new Array(n);
+  for (let r = n - 1; r >= 0; r--) {
+    let s = M[r][n];
+    for (let k = r + 1; k < n; k++) s -= M[r][k] * x[k];
+    x[r] = s / M[r][r];
+  }
+  return x;
+}
+function mul(A, B) {
+  const C = new Array(9).fill(0);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) for (let k = 0; k < 3; k++) C[r * 3 + c] += A[r * 3 + k] * B[k * 3 + c];
+  return C;
+}
+function apply(H, p) {
+  const w = H[6] * p[0] + H[7] * p[1] + H[8];
+  return [(H[0] * p[0] + H[1] * p[1] + H[2]) / w, (H[3] * p[0] + H[4] * p[1] + H[5]) / w];
+}
+// Hartley normalisation keeps the 8×8 system well conditioned for 4000-px photos
+function normT(pts) {
+  const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+  const md = pts.reduce((s, p) => s + Math.hypot(p[0] - cx, p[1] - cy), 0) / pts.length || 1;
+  const s = md / Math.SQRT2;
+  return { T: [1 / s, 0, -cx / s, 0, 1 / s, -cy / s, 0, 0, 1], Ti: [s, 0, cx, 0, s, cy, 0, 0, 1] };
+}
+function homography(src, dst) {
+  const a = normT(src), b = normT(dst);
+  const ns = src.map(p => apply(a.T, p)), nd = dst.map(p => apply(b.T, p));
+  const A = [], v = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = ns[i], [u, w] = nd[i];
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); v.push(u);
+    A.push([0, 0, 0, x, y, 1, -w * x, -w * y]); v.push(w);
+  }
+  const h = solve(A, v);
+  if (!h) return null;
+  return mul(b.Ti, mul([...h, 1], a.T));
+}
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+// Order as top-left, top-right, bottom-right, bottom-left (image y points down)
+function sortQuad(pts) {
+  const cx = pts.reduce((s, p) => s + p[0], 0) / 4, cy = pts.reduce((s, p) => s + p[1], 0) / 4;
+  const s = pts.slice().sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+  let k = 0;
+  for (let i = 1; i < 4; i++) if (s[i][0] + s[i][1] < s[k][0] + s[k][1]) k = i;
+  return [0, 1, 2, 3].map(i => s[(i + k) % 4]);
+}
+function isConvex(q) {
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = q[i], b = q[(i + 1) % 4], c = q[(i + 2) % 4];
+    const cr = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    if (Math.abs(cr) < 1e-9) return false;
+    if (!sign) sign = Math.sign(cr); else if (Math.sign(cr) !== sign) return false;
+  }
+  return true;
+}
+// Perspective comes from the large door rectangle; the small sheet only sets the scale.
+// (Taking perspective from the sheet alone blows a 2-px slip into ±30 cm on the door.)
+function measure(sheetPts, doorPts, orient) {
+  const sq = sortQuad(sheetPts), dq = sortQuad(doorPts);
+  if (!isConvex(sq) || !isConvex(dq)) return { error: "cross" };
+  let o = orient;
+  if (o === "auto") {
+    const hor = dist(sq[0], sq[1]) + dist(sq[3], sq[2]), ver = dist(sq[0], sq[3]) + dist(sq[1], sq[2]);
+    o = hor > ver ? "land" : "port";
+  }
+  const [la, lb] = o === "port" ? [210, 297] : [297, 210];
+  // Door → unit square; the real wall is then this square stretched by (width, height)
+  const H0 = homography(dq, [[0, 0], [1, 0], [1, 1], [0, 1]]);
+  if (!H0) return { error: "degenerate" };
+  const s = sq.map(p => apply(H0, p));
+  const a = [(s[1][0] - s[0][0] + s[2][0] - s[3][0]) / 2, (s[1][1] - s[0][1] + s[2][1] - s[3][1]) / 2];
+  const b = [(s[3][0] - s[0][0] + s[2][0] - s[1][0]) / 2, (s[3][1] - s[0][1] + s[2][1] - s[1][1]) / 2];
+  // Least squares for X = width², Y = height²: sheet sides la, lb and a right angle between them
+  const rows = [[a[0] ** 2, a[1] ** 2, la * la], [b[0] ** 2, b[1] ** 2, lb * lb], [a[0] * b[0], a[1] * b[1], 0]];
+  let m11 = 0, m12 = 0, m22 = 0, r1 = 0, r2 = 0;
+  for (const [p, q, r] of rows) { m11 += p * p; m12 += p * q; m22 += q * q; r1 += p * r; r2 += q * r; }
+  const det = m11 * m22 - m12 * m12;
+  if (Math.abs(det) < 1e-30) return { error: "degenerate" };
+  const X = (r1 * m22 - r2 * m12) / det, Y = (m11 * r2 - m12 * r1) / det;
+  if (!(X > 0 && Y > 0)) return { error: "geometry" };
+  const width = Math.sqrt(X), height = Math.sqrt(Y);
+  // Self-check: the sheet as reconstructed should come out 210 × 297 with a right angle
+  const A = [a[0] * width, a[1] * height], B = [b[0] * width, b[1] * height];
+  const lA = Math.hypot(...A), lB = Math.hypot(...B);
+  const angle = Math.acos(Math.max(-1, Math.min(1, (A[0] * B[0] + A[1] * B[1]) / (lA * lB)))) * 180 / Math.PI;
+  return { width, height, sheetA: lA, sheetB: lB, angle, orient: o };
+}
+function gauss() { let u = 0; while (!u) u = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random()); }
+// Spread of the result if every corner is off by sigma image pixels
+function spread(sheetPts, doorPts, orient, sigma, n = 160) {
+  const ws = [], hs = [];
+  const jit = pts => pts.map(p => [p[0] + gauss() * sigma, p[1] + gauss() * sigma]);
+  for (let i = 0; i < n; i++) {
+    const m = measure(jit(sheetPts), jit(doorPts), orient);
+    if (m.error || !isFinite(m.width)) continue;
+    ws.push(m.width); hs.push(m.height);
+  }
+  const sd = a => { const mu = a.reduce((s, x) => s + x, 0) / a.length; return Math.sqrt(a.reduce((s, x) => s + (x - mu) ** 2, 0) / a.length); };
+  return ws.length > 20 ? { w: sd(ws), h: sd(hs) } : null;
+}
+// ===== MATH END =====
+
+const $ = id => document.getElementById(id);
+const view = $("view"), vctx = view.getContext("2d"), loupe = $("loupe"), lctx = loupe.getContext("2d");
+const LOUPE = 140;
+const state = { img: null, W: 0, H: 0, sheet: [], door: [], example: true, last: null };
+let S = 1, dpr = 1, drag = null, queued = false;
+
+function store(key, val) { try { val === undefined ? null : localStorage.setItem(key, JSON.stringify(val)); return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+
+function makeExample() {
+  const W = 1200, H = 1600, c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  // Wall plane in millimetres → picture with perspective (camera slightly to the left)
+  const M = homography([[-500, 0], [1500, 0], [1500, 2600], [-500, 2600]], [[40, 120], [1170, 230], [1150, 1420], [60, 1520]]);
+  const quad = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(p => apply(M, p));
+  const fill = (pts, style) => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.fillStyle = style; g.fill(); };
+  g.fillStyle = "#c9c1b4"; g.fillRect(0, 0, W, H);
+  const fl = apply(M, [-500, 2600]), fr = apply(M, [1500, 2600]);
+  fill([fl, fr, [W, H], [0, H]], "#8b6a49");
+  g.strokeStyle = "rgba(0,0,0,.12)"; g.lineWidth = 2;
+  for (let i = 1; i < 8; i++) { const x = i * W / 8; g.beginPath(); g.moveTo(fl[0] + (fr[0] - fl[0]) * i / 8, fl[1] + (fr[1] - fl[1]) * i / 8); g.lineTo(x - 80, H); g.stroke(); }
+  fill(quad(-500, 0, 1500, 2600), "#ece6db");
+  fill(quad(-500, 2530, 0, 2600), "#f8f6f1");
+  fill(quad(880, 2530, 1500, 2600), "#f8f6f1");
+  fill(quad(0, 520, 880, 2600), "#2e2a26");
+  fill(quad(130, 760, 750, 2600), "#4b443c");
+  fill(quad(1086, 1157, 1296, 1454), "rgba(0,0,0,.18)");
+  fill(quad(1080, 1150, 1290, 1447), "#ffffff");
+  for (let i = 0; i < 15; i++) {
+    const y = 1180 + i * 16;
+    fill(quad(1105, y, i % 4 === 3 ? 1200 : 1265, y + 4), "#cfcfcf");
+  }
+  const img = new Image();
+  img.src = c.toDataURL("image/jpeg", 0.9);
+  return {
+    img, W, H,
+    sheet: [[1080, 1150], [1290, 1150], [1290, 1447], [1080, 1447]].map(p => apply(M, p)),
+    door: [[0, 520], [880, 520], [880, 2600], [0, 2600]].map(p => apply(M, p))
+  };
+}
+
+function defaultPoints(W, H) {
+  const cx = 0.74 * W, cy = 0.48 * H, sw = 0.07 * Math.min(W, H), sh = sw * 1.414;
+  return {
+    sheet: [[cx - sw, cy - sh], [cx + sw, cy - sh], [cx + sw, cy + sh], [cx - sw, cy + sh]],
+    door: [[0.2 * W, 0.18 * H], [0.56 * W, 0.18 * H], [0.56 * W, 0.9 * H], [0.2 * W, 0.9 * H]]
+  };
+}
+
+function setImage(img, W, H, pts, example) {
+  Object.assign(state, { img, W, H, sheet: pts.sheet.map(p => p.slice()), door: pts.door.map(p => p.slice()), example });
+  $("srcNote").textContent = example
+    ? "Сейчас открыт пример: нарисованная стена, проём ровно 880 × 2080 мм. Подвиньте любую точку и посмотрите, как меняются размеры."
+    : "Ваше фото. Поставьте оранжевые точки на углы листа, синие — на углы проёма.";
+  layout();
+}
+
+function layout() {
+  if (!state.img) return;
+  const stageW = $("stage").clientWidth, maxH = Math.max(320, window.innerHeight * 0.72);
+  if (!stageW) return;
+  S = Math.min(stageW / state.W, maxH / state.H);
+  dpr = window.devicePixelRatio || 1;
+  const cw = Math.round(state.W * S), ch = Math.round(state.H * S);
+  view.style.width = cw + "px"; view.style.height = ch + "px";
+  view.width = Math.round(cw * dpr); view.height = Math.round(ch * dpr);
+  loupe.width = LOUPE * dpr; loupe.height = LOUPE * dpr;
+  schedule();
+}
+
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function drawQuad(ctx, pts, color, k, active) {
+  const q = sortQuad(pts);
+  ctx.lineJoin = "round";
+  ctx.beginPath(); q.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
+  ctx.lineWidth = 4 / k; ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.stroke();
+  ctx.lineWidth = 2 / k; ctx.strokeStyle = color; ctx.stroke();
+  pts.forEach((p, i) => {
+    const r = (active === i ? 13 : 10) / k;
+    ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, Math.PI * 2);
+    ctx.lineWidth = 5 / k; ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.stroke();
+    ctx.lineWidth = 3 / k; ctx.strokeStyle = color; ctx.stroke();
+    ctx.beginPath(); ctx.arc(p[0], p[1], 1.6 / k, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+  });
+}
+
+function loupeK() { return Math.max(4 * S, 1.5); }
+
+function render() {
+  queued = false;
+  if (!state.img) return;
+  const sheetC = css("--sheet"), doorC = css("--door");
+  const k = S * dpr;
+  vctx.setTransform(k, 0, 0, k, 0, 0);
+  vctx.clearRect(0, 0, state.W, state.H);
+  vctx.drawImage(state.img, 0, 0, state.W, state.H);
+  drawQuad(vctx, state.sheet, sheetC, S, drag && drag.set === "sheet" ? drag.i : -1);
+  drawQuad(vctx, state.door, doorC, S, drag && drag.set === "door" ? drag.i : -1);
+
+  if (drag) {
+    const p = state[drag.set][drag.i], L = loupeK(), lk = L * dpr;
+    lctx.setTransform(1, 0, 0, 1, 0, 0);
+    lctx.fillStyle = "#000"; lctx.fillRect(0, 0, loupe.width, loupe.height);
+    lctx.setTransform(lk, 0, 0, lk, LOUPE / 2 * dpr - p[0] * lk, LOUPE / 2 * dpr - p[1] * lk);
+    lctx.drawImage(state.img, 0, 0, state.W, state.H);
+    drawQuad(lctx, state.sheet, sheetC, L, -2);
+    drawQuad(lctx, state.door, doorC, L, -2);
+    lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    lctx.strokeStyle = "#fff"; lctx.lineWidth = 1;
+    lctx.beginPath(); lctx.moveTo(LOUPE / 2, 0); lctx.lineTo(LOUPE / 2, LOUPE / 2 - 8); lctx.moveTo(LOUPE / 2, LOUPE / 2 + 8); lctx.lineTo(LOUPE / 2, LOUPE);
+    lctx.moveTo(0, LOUPE / 2); lctx.lineTo(LOUPE / 2 - 8, LOUPE / 2); lctx.moveTo(LOUPE / 2 + 8, LOUPE / 2); lctx.lineTo(LOUPE, LOUPE / 2); lctx.stroke();
+    const stageW = $("stage").clientWidth, offX = (stageW - parseFloat(view.style.width)) / 2;
+    const onLeft = p[0] * S + offX < stageW / 2;
+    loupe.style.left = onLeft ? "" : "10px";
+    loupe.style.right = onLeft ? "10px" : "";
+    loupe.hidden = false;
+  } else loupe.hidden = true;
+
+  updateResults();
+}
+
+function schedule() { if (!queued) { queued = true; requestAnimationFrame(render); } }
+
+const fmt = x => Math.round(x).toLocaleString("ru-RU");
+const signed = x => (x > 0 ? "+" : x < 0 ? "−" : "±") + Math.abs(Math.round(x));
+
+function suggestion(wMin, hMin) {
+  const table = [[600, 670, 700], [700, 770, 800], [800, 870, 900], [900, 970, 1000]];
+  const hit = table.find(r => wMin >= r[1] && wMin <= r[2]);
+  let wText;
+  if (hit) wText = `полотно ${hit[0]}`;
+  else if (wMin < 670) wText = "узкий проём, меньше стандарта 600";
+  else if (wMin > 1000) wText = "широкий проём, больше стандарта 900";
+  else {
+    const lower = table.filter(r => r[2] < wMin).pop(), upper = table.find(r => r[1] > wMin);
+    wText = `между стандартами: сузить под ${lower[0]} или расширить под ${upper[0]}`;
+  }
+  let hText = hMin < 2060 ? "проём ниже стандарта 2000" : hMin <= 2100 ? "высота 2000" : "проём выше стандарта, нужен добор сверху или полотно 2100";
+  return `Ориентир: ${wText}, ${hText}. <mark>Таблица типовая, сверить с фабрикой и салоном.</mark>`;
+}
+
+function updateResults() {
+  const orient = $("orient").value;
+  const m = measure(state.sheet, state.door, orient);
+  const warn = $("warn");
+  state.last = null;
+  if (m.error) {
+    $("wVal").textContent = "—"; $("hVal").textContent = "—";
+    ["wPm", "hPm", "ctrl", "suggest"].forEach(id => $(id).textContent = "");
+    warn.hidden = false;
+    warn.textContent = m.error === "geometry"
+      ? "Точки листа и проёма не сходятся в одну плоскость. Проверьте, что лист висит на стене и все углы отмечены точно."
+      : "Углы стоят крест-накрест или слиплись. Разведите точки по четырём углам.";
+    updateDiff();
+    return;
+  }
+  state.last = m;
+  $("wVal").textContent = fmt(m.width);
+  $("hVal").textContent = fmt(m.height);
+  $("ctrl").textContent = `Контроль: лист по расчёту ${fmt(Math.min(m.sheetA, m.sheetB))} × ${fmt(Math.max(m.sheetA, m.sheetB))} мм, угол ${m.angle.toFixed(1).replace(".", ",")}°. Чем ближе к 210 × 297 и 90°, тем точнее отмечены точки.`;
+  const sigma = Math.max(2, 0.35 / S);
+  const sp = drag ? state.lastSpread : (state.lastSpread = spread(state.sheet, state.door, orient, sigma));
+  $("wPm").textContent = sp ? `± ${Math.max(1, Math.round(2 * sp.w))} мм` : "";
+  $("hPm").textContent = sp ? `± ${Math.max(1, Math.round(2 * sp.h))} мм` : "";
+
+  const msgs = [];
+  const sq = sortQuad(state.sheet), sheetPx = Math.min(dist(sq[0], sq[1]), dist(sq[0], sq[3]));
+  if (sheetPx < 0.04 * Math.max(state.W, state.H)) msgs.push("Лист на фото слишком мелкий, точность падает. Подойдите ближе или приклейте лист ближе к камере, но на ту же стену.");
+  const ratioErr = Math.abs(Math.max(m.sheetA, m.sheetB) / Math.min(m.sheetA, m.sheetB) / (297 / 210) - 1);
+  if (Math.abs(m.angle - 90) > 3 || ratioErr > 0.05) msgs.push("Лист после пересчёта получился кривым. Скорее всего, неточно стоят углы проёма или листа, либо лист висит не на стене.");
+  if (sp && (2 * sp.w > 25 || 2 * sp.h > 40)) msgs.push("Разброс большой: лист маленький относительно проёма или снято под сильным углом.");
+  warn.hidden = !msgs.length;
+  warn.textContent = msgs.join(" ");
+  $("suggest").innerHTML = suggestion(m.width, m.height);
+  updateDiff();
+}
+
+function updateDiff() {
+  const tw = parseFloat($("tapeW").value), th = parseFloat($("tapeH").value), m = state.last, el = $("diff");
+  if (!m || (!tw && !th)) { el.textContent = "Впишите размеры по рулетке, и здесь появится разница."; return; }
+  const part = (label, a, b) => {
+    if (!b) return "";
+    const d = a - b, cls = Math.abs(d) <= 10 ? "ok" : "bad";
+    return `${label}: <span class="${cls}">${signed(d)} мм</span>`;
+  };
+  el.innerHTML = [part("ширина", m.width, tw), part("высота", m.height, th)].filter(Boolean).join(" · ") + " <span>(фото минус рулетка)</span>";
+}
+
+// ----- dragging: slow finger moves are fine-grained, fast ones cover the whole photo -----
+function localXY(clientX, clientY) { const r = view.getBoundingClientRect(); return [clientX - r.left, clientY - r.top]; }
+function pick(x, y) {
+  let best = null, bd = 34;
+  for (const set of ["sheet", "door"]) state[set].forEach((p, i) => {
+    const d = Math.hypot(p[0] * S - x, p[1] * S - y);
+    if (d < bd) { bd = d; best = { set, i }; }
+  });
+  return best;
+}
+function startDrag(cx, cy) {
+  const [x, y] = localXY(cx, cy), h = pick(x, y);
+  if (!h) return false;
+  drag = { ...h, lx: cx, ly: cy };
+  schedule();
+  return true;
+}
+function moveDrag(cx, cy) {
+  const dx = cx - drag.lx, dy = cy - drag.ly;
+  drag.lx = cx; drag.ly = cy;
+  const v = Math.hypot(dx, dy), t = Math.min(1, Math.max(0, (v - 1.5) / 10));
+  const f = 1 / loupeK() + (1 / S - 1 / loupeK()) * t;
+  const p = state[drag.set][drag.i];
+  p[0] = Math.min(state.W, Math.max(0, p[0] + dx * f));
+  p[1] = Math.min(state.H, Math.max(0, p[1] + dy * f));
+  schedule();
+}
+function endDrag() { if (drag) { drag = null; schedule(); } }
+
+view.addEventListener("touchstart", e => {
+  if (e.touches.length !== 1) return;
+  if (startDrag(e.touches[0].clientX, e.touches[0].clientY)) e.preventDefault();
+}, { passive: false });
+view.addEventListener("touchmove", e => { if (drag) { e.preventDefault(); moveDrag(e.touches[0].clientX, e.touches[0].clientY); } }, { passive: false });
+view.addEventListener("touchend", endDrag);
+view.addEventListener("touchcancel", endDrag);
+view.addEventListener("mousedown", e => { if (startDrag(e.clientX, e.clientY)) e.preventDefault(); });
+window.addEventListener("mousemove", e => { if (drag) moveDrag(e.clientX, e.clientY); });
+window.addEventListener("mouseup", endDrag);
+view.addEventListener("mousemove", e => { if (!drag) { const [x, y] = localXY(e.clientX, e.clientY); view.style.cursor = pick(x, y) ? "grab" : "default"; } });
+
+$("photo").addEventListener("change", e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => setImage(img, img.naturalWidth, img.naturalHeight, defaultPoints(img.naturalWidth, img.naturalHeight), false);
+  img.onerror = () => { $("srcNote").textContent = "Не получилось открыть фото. Попробуйте JPG или PNG."; };
+  img.src = URL.createObjectURL(file);
+  e.target.value = "";
+});
+$("resetPts").addEventListener("click", () => {
+  if (state.example) { const ex = makeExample(); state.sheet = ex.sheet; state.door = ex.door; }
+  else Object.assign(state, defaultPoints(state.W, state.H));
+  schedule();
+});
+$("loadExample").addEventListener("click", loadExample);
+$("orient").addEventListener("change", () => { state.lastSpread = null; schedule(); });
+$("tapeW").addEventListener("input", updateDiff);
+$("tapeH").addEventListener("input", updateDiff);
+
+// ----- check log (kept in this browser only) -----
+let checks = store("zamer-a4-checks") || [];
+function logLine(c, i) {
+  const d = (a, b) => b ? signed(a - b) : "—";
+  return `Проверка ${i + 1} (${c.date}): по фото ${c.w} × ${c.h}, рулетка ${c.tw || "—"} × ${c.th || "—"}, разница ${d(c.w, c.tw)} / ${d(c.h, c.th)} мм, разброс ±${c.pw}/±${c.ph}`;
+}
+function renderLog() {
+  $("log").innerHTML = checks.map((c, i) => `<li>${logLine(c, i)}</li>`).join("");
+}
+$("saveCheck").addEventListener("click", () => {
+  const m = state.last;
+  if (!m) return;
+  const now = new Date();
+  checks.push({
+    date: now.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }) + " " + now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+    w: Math.round(m.width), h: Math.round(m.height),
+    tw: parseFloat($("tapeW").value) || null, th: parseFloat($("tapeH").value) || null,
+    pw: $("wPm").textContent.replace(/[^\d]/g, ""), ph: $("hPm").textContent.replace(/[^\d]/g, ""),
+    example: state.example
+  });
+  store("zamer-a4-checks", checks);
+  renderLog();
+  $("saveCheck").textContent = "Сохранено";
+  setTimeout(() => { $("saveCheck").textContent = "Сохранить проверку"; }, 1500);
+});
+$("copyLog").addEventListener("click", () => {
+  const text = checks.length ? checks.map(logLine).join("\n") : "Проверок пока нет.";
+  const box = $("copyBox");
+  const fallback = () => { box.hidden = false; box.value = text; box.focus(); box.select(); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      $("copyLog").textContent = "Скопировано";
+      setTimeout(() => { $("copyLog").textContent = "Скопировать все проверки"; }, 1500);
+    }, fallback);
+  } else fallback();
+});
+
+// Typical box depth; extensions come in fixed widths. Not confirmed with the factory yet.
+const BOX_DEPTH = 70, DOBOR_SIZES = [100, 150, 200];
+function doborText(T) {
+  if (!T) return "";
+  if (T < BOX_DEPTH - 5) return ` Стена тоньше обычной коробки (${BOX_DEPTH} мм), это уточнит замерщик.`;
+  const need = T - BOX_DEPTH;
+  const note = ` <mark>Глубина коробки ${BOX_DEPTH} мм — типовая, сверить.</mark>`;
+  if (need <= 5) return ` Стена ${fmt(T)} мм: коробки хватает, добор не нужен.` + note;
+  const size = DOBOR_SIZES.find(x => x >= need);
+  return ` Стена ${fmt(T)} мм: нужен добор ${fmt(need)} мм${size ? ` (планка ${size}, подрезается)` : ", это шире стандартной планки, понадобится несколько"}.` + note;
+}
+
+const tapeIds = ["w1", "w2", "w3", "h1", "h2", "t1", "t2"];
+// Values below the threshold look like centimetres and are converted to millimetres
+function readNum(id, cmBelow) {
+  const v = parseFloat($(id).value.trim().replace(",", "."));
+  if (!(v > 0)) return null;
+  return v < cmBelow ? { v: v * 10, cm: true } : { v, cm: false };
+}
+function tapeCalc() {
+  const hasDoor = $("doorYes").checked;
+  $("tapeHint").textContent = hasDoor
+    ? "Если можно, снимите наличник с одной стороны и мерьте от стены до стены. Если снять нельзя, мерьте по внешнему краю коробки: замерщик это учтёт."
+    : "Мерьте от стены до стены, по штукатурке. Высоту — от готового пола (с плиткой или ламинатом) до верха проёма.";
+  const read = (ids, cmBelow) => ids.map(id => readNum(id, cmBelow)).filter(Boolean);
+  const ws = read(["w1", "w2", "w3"], 300), hs = read(["h1", "h2"], 300), ts = read(["t1", "t2"], 40);
+  const vals = a => a.map(x => x.v);
+  const W = ws.length ? Math.min(...vals(ws)) : null;
+  const H = hs.length ? Math.min(...vals(hs)) : null;
+  const T = ts.length ? Math.max(...vals(ts)) : null;
+  $("tW").textContent = W ? fmt(W) : "—";
+  $("tH").textContent = H ? fmt(H) : "—";
+  $("tT").textContent = T ? fmt(T) : "—";
+  $("tInfo").hidden = ![...ws, ...hs, ...ts].some(x => x.cm);
+  $("tInfo").textContent = "Похоже, часть размеров вписана в сантиметрах. Пересчитали в миллиметры.";
+  const msgs = [];
+  const gap = a => a.length > 1 ? Math.max(...vals(a)) - Math.min(...vals(a)) : 0;
+  if (gap(ws) > 15) msgs.push(`Ширина в разных местах отличается на ${fmt(gap(ws))} мм: проём неровный. Считаем по самому узкому месту, замерщик проверит.`);
+  if (gap(hs) > 15) msgs.push(`Высота слева и справа отличается на ${fmt(gap(hs))} мм: пол или верх проёма с перекосом.`);
+  if (W && (W < 400 || W > 2000)) msgs.push("Ширина выглядит странно для межкомнатной двери. Проверьте цифры.");
+  if (H && (H < 1500 || H > 3000)) msgs.push("Высота выглядит странно для межкомнатной двери. Проверьте цифры.");
+  $("tWarn").hidden = !msgs.length;
+  $("tWarn").textContent = msgs.join(" ");
+  $("tSuggest").innerHTML = W && H ? suggestion(W, H) + doborText(T) : "Впишите хотя бы одну ширину и одну высоту.";
+  store("zamer-tape", { door: hasDoor, ...Object.fromEntries(tapeIds.map(id => [id, $(id).value])) });
+}
+tapeIds.forEach(id => $(id).addEventListener("input", tapeCalc));
+["doorNo", "doorYes"].forEach(id => $(id).addEventListener("change", tapeCalc));
+$("tapeForm").addEventListener("submit", e => e.preventDefault());
+$("tapeExample").addEventListener("click", () => {
+  const ex = { w1: 880, w2: 885, w3: 882, h1: 2080, h2: 2075, t1: 120, t2: 125 };
+  tapeIds.forEach(id => { $(id).value = ex[id]; });
+  tapeCalc();
+});
+(function restoreTape() {
+  const saved = store("zamer-tape");
+  if (!saved) return;
+  tapeIds.forEach(id => { if (saved[id]) $(id).value = saved[id]; });
+  $(saved.door ? "doorYes" : "doorNo").checked = true;
+})();
+
+function showTab(which) {
+  const tape = which !== "a4";
+  $("tabTape").setAttribute("aria-selected", String(tape));
+  $("tabA4").setAttribute("aria-selected", String(!tape));
+  $("paneTape").hidden = !tape;
+  $("paneA4").hidden = tape;
+  if (!tape) layout();
+}
+$("tabTape").addEventListener("click", () => showTab("tape"));
+$("tabA4").addEventListener("click", () => showTab("a4"));
+
+function loadExample() {
+  const ex = makeExample();
+  const go = () => setImage(ex.img, ex.W, ex.H, ex, true);
+  ex.img.complete ? go() : (ex.img.onload = go);
+}
+window.addEventListener("resize", layout);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", schedule);
+renderLog();
+loadExample();
+tapeCalc();
+showTab(location.hash === "#a4" ? "a4" : "tape");
+</script>
+
+</html>
